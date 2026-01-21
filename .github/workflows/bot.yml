@@ -1,9 +1,9 @@
-name: 🕒 Guaranteed Bot
+name: 🕒 Guaranteed Bot - Every 2 hours
 
 on:
   schedule:
-    # Co 2 godziny, różne minuty
-    - cron: '17 */2 * * *'  # 0:17, 2:17, 4:17...
+    # Co 2 godziny, różne minuty dla naturalności
+    - cron: '17 */2 * * *'  # 0:17, 2:17, 4:17, 6:17, 8:17, 10:17, 12:17, 14:17, 16:17, 18:17, 20:17, 22:17
   workflow_dispatch:
 
 jobs:
@@ -27,4 +27,12 @@ jobs:
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
-      run: python finance_growth_bot.py
+      run: python guaranteed_bot.py
+    
+    - name: 📊 Zapisz statystyki
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: bot-stats
+        path: bot_stats.json
+        retention-days: 30
