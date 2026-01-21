@@ -15,7 +15,7 @@ jobs:
     
     steps:
     - name: 📥 Pobierz kod
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Ustaw Pythona
       uses: actions/setup-python@v4
@@ -29,11 +29,14 @@ jobs:
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
-      run: python finance_growth_bot.py
+      run: |
+        echo "🚀 Rozpoczynam bota..."
+        python finance_growth_bot.py
+        echo "✅ Bot zakończył pracę"
     
     - name: 📊 Zapisz statystyki
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: bot-statistics
         path: |
@@ -45,15 +48,28 @@ jobs:
       if: always()
       run: |
         echo "========================================"
-        echo "🤖 BOT ZAKOŃCZYŁ PRACĘ"
+        echo "🤖 BOT ZAKOŃCZYŁ PRACĘ - PODSUMOWANIE"
         echo "========================================"
         echo ""
-        echo "Jeśli chcesz zobaczyć statystyki:"
-        echo "1. Kliknij na tę 'run' workflow"
-        echo "2. Przewiń do sekcji 'Artifacts'"
-        echo "3. Pobierz 'bot-statistics'"
+        
+        # Pokaż podstawowe statystyki
+        if [ -f "finance_bot_stats.json" ]; then
+          echo "📊 STATYSTYKI Z PLIKU:"
+          echo "----------------------"
+          cat finance_bot_stats.json
+          echo ""
+        fi
+        
+        echo "📁 CO ZROBIĆ DALEJ:"
+        echo "-------------------"
+        echo "1. Pobierz 'bot-statistics' z sekcji Artifacts"
+        echo "2. Sprawdź konto Bluesky - nowe komentarze"
+        echo "3. Monitoruj ruch na payhip.com/daveprime"
         echo ""
-        echo "Następne uruchomienie:"
-        echo "- 9 AM EST (14:00 UTC)"
-        echo "- 1 PM EST (18:00 UTC)"
-        echo "- 5 PM EST (22:00 UTC)"
+        echo "🕒 NASTĘPNE URUCHOMIENIE:"
+        echo "-------------------------"
+        echo "- 9 AM EST (14:00 UTC) - za $(($((14 - $(date -u +%H))) % 24))h"
+        echo "- 1 PM EST (18:00 UTC) - za $(($((18 - $(date -u +%H))) % 24))h"
+        echo "- 5 PM EST (22:00 UTC) - za $(($((22 - $(date -u +%H))) % 24))h"
+        echo ""
+        echo "🔗 TWÓJ SKLEP: https://www.payhip.com/daveprime"
