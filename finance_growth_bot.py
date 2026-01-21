@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Finance Growth Bot for Bluesky - FIXED VERSION
-Creates JSON files even when no posts found
+🚀 FINANCE GROWTH BOT FOR BLUESKY - WORKING VERSION
+Bot komentuje posty o finansach i co 5 komentarz dodaje link do sklepu
 """
 
 import json
@@ -9,214 +9,236 @@ import random
 import time
 import os
 from datetime import datetime
-from typing import List, Dict
 from atproto import Client, models
 
-# Financial sentences (first 20 for example)
+# ============================================================================
+# 📝 BAZA WIEDZY: 50 NAJLEPSZYCH SENTENCJI FINANSOWYCH
+# ============================================================================
+
 FINANCIAL_SENTENCES = [
-    # Debt & Credit (25 sentences)
-    "Stressed about debt? You're not alone. The first step is knowing your options.",
+    # Debt & Credit (15 sentences)
+    "Stressed about debt? The first step is knowing your options.",
     "Credit card companies don't want you to know these negotiation scripts.",
-    "Did you know you can often settle debt for 30-50% less? True story.",
-    "That collection call tomorrow? Could be your opportunity to negotiate.",
-    "The 'debt snowball' method changed my financial life. Anyone else tried it?",
+    "Did you know you can often settle debt for 30-50% less?",
+    "That collection call could be your opportunity to negotiate.",
+    "The 'debt snowball' method changed my financial life.",
     "Medical debt is negotiable. Most people don't know this.",
-    "Your credit score can recover faster than you think with the right strategy.",
-    "Debt validation letters are a powerful tool few consumers use.",
+    "Your credit score can recover faster than you think.",
     "Stop the harassing calls with one certified letter template.",
-    "Consolidation vs. settlement? The choice depends on your unique situation.",
-    "Those late fees aren't fixed. Everything is negotiable with creditors.",
+    "Consolidation vs. settlement? Depends on your unique situation.",
     "Financial emergencies happen. Having a plan B is non-negotiable.",
-    "The statute of limitations on debt varies by state. Know your rights.",
-    "Credit counseling agencies can help, but choose carefully.",
     "Bankruptcy isn't failure—it's a legal financial tool when needed.",
-    "The 11-word phrase that can stop debt collectors: 'This is an inconvenient time, please call back tomorrow.'",
-    "Your debt-to-income ratio matters more than your credit score for some loans.",
-    "Credit repair companies promising miracles are usually scams. DIY is better.",
-    "Those 'pre-approved' credit offers? They're not doing you any favors.",
     "Minimum payments keep you in debt for decades. Break the cycle.",
     "Balance transfer cards can be smart IF you have a payoff plan.",
     "Debt collectors have quotas too. Use this to your advantage.",
     "The Fair Debt Collection Practices Act protects you. Learn your rights.",
-    "Financial anxiety is real. Taking control starts with one small step.",
-    "Your debt isn't a moral failing. It's a math problem with solutions.",
     
-    # Money Management & Budgeting (25 sentences)
-    "Where does your money really go each month? Most people underestimate by 30%.",
+    # Money Management (15 sentences)
+    "Where does your money really go? Most people underestimate by 30%.",
     "The 50/30/20 budget rule saved my finances. Anyone else use it?",
     "Cash envelopes aren't old-school—they're psychologically effective.",
     "Subscription creep is real. $10 here, $15 there adds up to hundreds yearly.",
-    "That 'emergency fund' advice? Non-negotiable. Start with $500, then $1000.",
+    "That 'emergency fund' advice? Non-negotiable. Start with $500.",
     "Paying yourself first isn't selfish—it's smart financial planning.",
-    "Financial automation changed everything for me. Bills on autopilot = peace.",
+    "Financial automation changed everything. Bills on autopilot = peace.",
     "Side hustles aren't just for extra cash—they're your financial safety net.",
     "The latte factor is real. But don't deprive yourself—budget for treats.",
     "Zero-based budgeting: Every dollar has a job. Game-changer for control.",
     "Sinking funds for irregular expenses prevent financial surprises.",
-    "Cash flow problems aren't income problems—they're timing problems.",
-    "Weekly money dates with yourself keep finances on track.",
+    "Weekly money dates keep finances on track.",
     "Financial infidelity damages relationships. Transparency is key.",
-    "Money scripts from childhood affect adult spending. Awareness helps.",
-    "The envelope system works because it's tangible. Digital isn't always better.",
-    "Budgeting apps are tools, not solutions. Discipline is the solution.",
     "Living below your means is the ultimate financial freedom.",
-    "Financial minimalism: More money, less stress, fewer decisions.",
-    "Price per use is a better metric than purchase price for many things.",
-    "The 24-hour rule prevents impulse purchases. Wait, then decide.",
     "Financial margin = options. No margin = stress.",
-    "Budgeting isn't restriction—it's permission to spend on what matters.",
-    "Cash-only challenges reset spending habits effectively.",
-    "Your budget should fit your life, not force you into someone else's template.",
     
-    # Crisis & Survival Finance (25 sentences)
-    "When money gets tight, prioritize: 1) Shelter 2) Utilities 3) Food 4) Transportation.",
+    # Crisis & Survival (10 sentences)
+    "When money gets tight: 1) Shelter 2) Utilities 3) Food 4) Transportation.",
     "The 72-hour financial crisis plan everyone should have.",
     "Survival mode budgeting focuses on needs, cuts all wants temporarily.",
     "$30 can feed one person for a week with strategic shopping.",
-    "Financial first aid: Stop bleeding cash before addressing long-term issues.",
+    "Financial first aid: Stop bleeding cash before long-term issues.",
     "Crisis doesn't last forever. Temporary measures for temporary problems.",
-    "When overwhelmed, focus on today's bills only. Don't project future anxiety.",
-    "Community resources exist for emergencies. Pride shouldn't prevent using them.",
     "Negotiate EVERYTHING during hardship: rent, utilities, medical bills.",
-    "The priority pyramid: Physiological needs first, then safety, then everything else.",
     "Cash is king during financial emergencies. Liquidate non-essentials quickly.",
     "Financial triage: What must be paid now vs. what can wait?",
-    "Crisis budgeting is different from regular budgeting. Survival first.",
-    "Temporary hardship programs exist with most major creditors.",
-    "The 'financial first aid kit' should include: cash, important documents, budget.",
-    "When income drops suddenly, act within 72 hours to preserve cash.",
-    "Emergency funds aren't luxuries—they're necessities.",
-    "Financial resilience is built BEFORE the crisis, not during.",
     "One month's expenses saved changes everything during job loss.",
-    "Side income streams provide stability when main income falters.",
-    "Barter and trade regain value during financial hardship.",
-    "Financial crisis reveals true priorities quickly.",
-    "Survival mode is temporary. Plan your exit strategy from day one.",
-    "Community support matters more than ever during financial stress.",
-    "Every financial crisis contains opportunity for positive change.",
     
-    # Mindset & Psychology (25 sentences)
-    "Your money mindset determines your financial outcomes more than income.",
+    # Mindset & Psychology (10 sentences)
+    "Your money mindset determines outcomes more than income.",
     "Scarcity vs. abundance thinking changes financial decisions dramatically.",
-    "Financial self-talk matters. 'I can't afford it' vs 'I choose to spend differently.'",
     "Money shame keeps people stuck. Talking about finances breaks the cycle.",
-    "Delayed gratification is a muscle that strengthens with practice.",
     "Financial literacy is the great equalizer in modern society.",
-    "Your network determines your net worth. Surround yourself with financially smart people.",
-    "Money is a tool, not a goal. Tools build the life you want.",
-    "Financial confidence comes from knowledge, not from account balance.",
     "The comparison trap steals joy and wastes money.",
     "Gratitude practices reduce impulsive spending significantly.",
     "Financial boundaries are healthy—with family, friends, and yourself.",
-    "Money scripts from childhood run in the background. Time to update them.",
-    "Financial therapy addresses the emotional side of money decisions.",
-    "Scarcity mentality creates more scarcity. Break the cycle.",
-    "Abundance isn't about having more—it's about appreciating what you have.",
-    "Financial anxiety decreases as financial literacy increases.",
-    "Money conversations should be routine, not taboo.",
-    "Your financial identity can evolve. Past mistakes don't define future success.",
-    "Small financial wins create momentum for bigger changes.",
-    "Financial empowerment feels better than any purchase.",
-    "Money is energy. How you direct it determines what grows in your life.",
+    "Financial confidence comes from knowledge, not account balance.",
     "Financial peace is possible at any income level.",
-    "Progress, not perfection, is the goal with money.",
     "Your financial future is created by today's small decisions."
 ]
 
-class FinanceGrowthBotFixed:
+# ============================================================================
+# 🤖 GŁÓWNA KLASA BOTA
+# ============================================================================
+
+class FinanceGrowthBot:
     def __init__(self):
         self.handle = os.getenv('BLUESKY_HANDLE', '')
         self.password = os.getenv('BLUESKY_PASSWORD', '')
         self.client = None
         
-        # 🔥 NAJPIERW TWORZYMY PLIKI!
-        self.create_required_files()
+        # Inicjalizacja plików
+        self.initialize_files()
         
-        # Counters
+        # Liczniki
         self.comment_counter = 0
-        self.commented_posts = self.load_commented_posts()
+        self.comments_today = 0
         
-        print(f"🤖 Finance Growth Bot v2.0")
-        print(f"📊 {len(FINANCIAL_SENTENCES)} sentences loaded")
+        print(f"🤖 Finance Growth Bot v4.0")
+        print(f"📊 Załadowano {len(FINANCIAL_SENTENCES)} sentencji finansowych")
     
-    def create_required_files(self):
-        """Create all required data files"""
-        files = {
-            'finance_bot_stats.json': {
+    def initialize_files(self):
+        """Tworzy pliki danych jeśli nie istnieją"""
+        # Plik statystyk
+        if not os.path.exists('bot_stats.json'):
+            stats = {
                 'total_comments': 0,
                 'comments_today': 0,
                 'shop_links_posted': 0,
                 'last_reset': datetime.now().isoformat(),
                 'created': datetime.now().isoformat(),
-                'bot_status': 'active'
-            },
-            'posted_comments.json': []
-        }
+                'version': '4.0'
+            }
+            with open('bot_stats.json', 'w') as f:
+                json.dump(stats, f, indent=2)
+            print("📁 Utworzono bot_stats.json")
         
-        for filename, default_data in files.items():
-            if not os.path.exists(filename):
-                with open(filename, 'w') as f:
-                    json.dump(default_data, f, indent=2)
-                print(f"📁 Created {filename}")
+        # Plik historii komentarzy
+        if not os.path.exists('comments_history.json'):
+            with open('comments_history.json', 'w') as f:
+                json.dump([], f)
+            print("📁 Utworzono comments_history.json")
+    
+    def load_stats(self):
+        """Ładuje statystyki"""
+        try:
+            with open('bot_stats.json', 'r') as f:
+                return json.load(f)
+        except:
+            return {'total_comments': 0, 'comments_today': 0}
+    
+    def save_stats(self, stats):
+        """Zapisuje statystyki"""
+        with open('bot_stats.json', 'w') as f:
+            json.dump(stats, f, indent=2)
     
     def load_commented_posts(self):
-        """Load posts we've already commented on"""
+        """Ładuje listę już skomentowanych postów"""
         try:
-            with open('posted_comments.json', 'r') as f:
-                comments = json.load(f)
-                return set([c.get('post_uri', '') for c in comments if c.get('post_uri')])
+            with open('comments_history.json', 'r') as f:
+                history = json.load(f)
+            return {item['post_uri'] for item in history if 'post_uri' in item}
         except:
             return set()
     
-    def should_add_shop_link(self):
-        """Add shop link every 5th comment"""
-        self.comment_counter += 1
-        return self.comment_counter % 5 == 0
+    def save_comment(self, post_uri, comment_text):
+        """Zapisuje komentarz do historii"""
+        try:
+            with open('comments_history.json', 'r') as f:
+                history = json.load(f)
+        except:
+            history = []
+        
+        history.append({
+            'post_uri': post_uri,
+            'comment': comment_text[:200],
+            'timestamp': datetime.now().isoformat(),
+            'comment_number': self.comment_counter
+        })
+        
+        # Zachowaj tylko ostatnie 100 komentarzy
+        if len(history) > 100:
+            history = history[-100:]
+        
+        with open('comments_history.json', 'w') as f:
+            json.dump(history, f)
     
-    def format_with_shop_link(self, comment):
-        """Add shop link to comment"""
-        shop_link = "https://www.payhip.com/daveprime"
-        ctas = [
-            f"\n\n👉 Practical guides: {shop_link}",
-            f"\n\n🔗 Templates & scripts: {shop_link}",
-        ]
-        return comment + random.choice(ctas)
+    # ============================================================================
+    # 🎯 LOGIKA WYSZUKIWANIA POSTÓW
+    # ============================================================================
     
-    def find_posts_simple(self):
-        """Simple post finding for new accounts"""
-        print("🔍 Searching for finance posts...")
+    def search_finance_posts(self):
+        """Wyszukuje posty o finansach"""
+        print("🔍 Szukam postów o finansach...")
         
         posts_found = []
-        
-        if not self.client:
-            return posts_found
+        commented_posts = self.load_commented_posts()
         
         try:
-            # Try searching popular finance hashtags
-            hashtags = ['personalfinance', 'debt', 'money', 'budget']
+            # METODA 1: Przeszukaj feed (najprostsze)
+            print("  📰 Sprawdzam feed...")
+            timeline = self.client.get_timeline(limit=50)
             
-            for hashtag in hashtags:
-                try:
-                    print(f"  Searching #{hashtag}...")
-                    results = self.client.app.bsky.feed.search_posts(
-                        q=f'#{hashtag}',
-                        limit=10
-                    )
+            for item in timeline.feed:
+                post = item.post
+                
+                # Podstawowe filtry
+                if post.uri in commented_posts:
+                    continue
+                
+                if post.author.did == self.client.me.did:
+                    continue
+                
+                if post.like_count < 15:  # Min 15 polubień
+                    continue
+                
+                # Sprawdź czy to temat finansowy
+                post_text = post.record.text.lower()
+                finance_keywords = [
+                    'debt', 'credit', 'money', 'finance', 'budget',
+                    'loan', 'mortgage', 'bank', 'cash', 'income',
+                    'bill', 'financial', 'crisis', 'emergency'
+                ]
+                
+                if any(keyword in post_text for keyword in finance_keywords):
+                    posts_found.append({
+                        'uri': post.uri,
+                        'cid': post.cid,
+                        'text': post.record.text,
+                        'author': post.author.handle,
+                        'likes': post.like_count,
+                        'replies': post.reply_count,
+                        'reposts': post.repost_count
+                    })
                     
-                    for post in results.posts:
-                        # Basic filters
-                        if post.uri in self.commented_posts:
-                            continue
+                    print(f"    ✅ Znaleziono: @{post.author.handle} ({post.like_count} 👍)")
+                    
+                    if len(posts_found) >= 5:  # Max 5 postów
+                        break
+            
+            # METODA 2: Wyszukiwanie (jeśli feed nie wystarczy)
+            if len(posts_found) < 2:
+                print("  🔎 Wyszukuję po hashtagach...")
+                search_terms = ['debt', 'money', 'budget', 'finance']
+                
+                for term in search_terms:
+                    try:
+                        # Poprawna składnia API
+                        results = self.client.app.bsky.feed.search_posts(
+                            params={'q': term, 'limit': 10}
+                        )
                         
-                        if post.author.did == self.client.me.did:
-                            continue
-                        
-                        if post.like_count < 5:
-                            continue
-                        
-                        # Check if finance-related
-                        text = post.record.text.lower()
-                        if any(word in text for word in ['debt', 'credit', 'money', 'loan', 'finance']):
+                        for post in results.posts:
+                            if len(posts_found) >= 5:
+                                break
+                            
+                            if post.uri in commented_posts:
+                                continue
+                            
+                            if post.author.did == self.client.me.did:
+                                continue
+                            
+                            if post.like_count < 10:
+                                continue
+                            
                             posts_found.append({
                                 'uri': post.uri,
                                 'cid': post.cid,
@@ -225,208 +247,248 @@ class FinanceGrowthBotFixed:
                                 'likes': post.like_count
                             })
                             
-                            if len(posts_found) >= 3:
-                                return posts_found
-                                
-                except Exception as e:
-                    print(f"  ⚠️  Error with #{hashtag}: {e}")
-                    continue
+                            print(f"    🔍 '{term}': @{post.author.handle}")
+                            
+                    except Exception as e:
+                        print(f"    ⚠️  Błąd wyszukiwania '{term}': {str(e)[:50]}")
+                        continue
         
         except Exception as e:
-            print(f"❌ Search error: {e}")
+            print(f"❌ Błąd wyszukiwania postów: {e}")
         
+        print(f"🎯 Znaleziono {len(posts_found)} postów")
         return posts_found
     
-    def generate_comment(self):
-        """Generate a financial comment"""
-        # Pick 1-2 random sentences
-        num = random.choice([1, 2])
-        sentences = random.sample(FINANCIAL_SENTENCES, num)
-        comment = " ".join(sentences)
-        
-        # Add shop link if it's the 5th comment
-        if self.should_add_shop_link():
-            comment = self.format_with_shop_link(comment)
-            print("🔗 Adding shop link (every 5th comment)")
-        
-        return comment
+    # ============================================================================
+    # 💬 GENEROWANIE KOMENTARZY
+    # ============================================================================
     
-    def post_comment(self, post_uri, post_cid, comment):
-        """Post a comment to Bluesky"""
+    def should_add_shop_link(self):
+        """Czy dodać link do sklepu? (co 5 komentarz)"""
+        self.comment_counter += 1
+        return self.comment_counter % 5 == 0
+    
+    def format_comment(self, base_comment):
+        """Formatuje komentarz, dodaje link jeśli trzeba"""
+        shop_link = "https://www.payhip.com/daveprime"
+        
+        if self.should_add_shop_link():
+            ctas = [
+                f"\n\n👉 Praktyczne przewodniki: {shop_link}",
+                f"\n\n🔗 Szablony i skrypty: {shop_link}",
+                f"\n\n📘 Krok po kroku: {shop_link}"
+            ]
+            return base_comment + random.choice(ctas)
+        
+        return base_comment
+    
+    def generate_relevant_comment(self, post_text=""):
+        """Generuje komentarz pasujący do tematu posta"""
+        if post_text:
+            post_lower = post_text.lower()
+            
+            # Wybierz odpowiednie sentencje
+            if any(word in post_lower for word in ['debt', 'owe', 'collection', 'credit']):
+                # Temat: długi
+                category = [s for s in FINANCIAL_SENTENCES if any(
+                    w in s.lower() for w in ['debt', 'credit', 'owe', 'collection']
+                )]
+            elif any(word in post_lower for word in ['budget', 'save', 'spend', 'money']):
+                # Temat: budżet
+                category = [s for s in FINANCIAL_SENTENCES if any(
+                    w in s.lower() for w in ['budget', 'save', 'money', 'spend']
+                )]
+            elif any(word in post_lower for word in ['crisis', 'emergency', 'hardship']):
+                # Temat: kryzys
+                category = [s for s in FINANCIAL_SENTENCES if any(
+                    w in s.lower() for w in ['crisis', 'emergency', 'hardship']
+                )]
+            else:
+                category = FINANCIAL_SENTENCES
+            
+            if not category:
+                category = FINANCIAL_SENTENCES
+            
+            sentence = random.choice(category)
+        else:
+            sentence = random.choice(FINANCIAL_SENTENCES)
+        
+        return self.format_comment(sentence)
+    
+    # ============================================================================
+    # 📤 PUBLIKOWANIE KOMENTARZY
+    # ============================================================================
+    
+    def post_comment_to_bluesky(self, post_uri, post_cid, comment):
+        """Publikuje komentarz na Bluesky"""
         try:
+            # Stwórz referencję do posta
             parent_ref = models.create_strong_ref(post_uri, post_cid)
             
-            self.client.send_post(
-                comment,
+            # Wyślij odpowiedź
+            response = self.client.send_post(
+                text=comment,
                 reply_to=models.AppBskyFeedPost.ReplyRef(
                     parent=parent_ref,
                     root=parent_ref
                 )
             )
             
-            # Save to history
-            self.save_comment_history(post_uri, comment)
+            print(f"💬 Opublikowano komentarz")
+            if self.comment_counter % 5 == 0:
+                print("   🔗 + link do sklepu")
             
-            print(f"💬 Comment posted: {comment[:60]}...")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to post comment: {e}")
+            print(f"❌ Błąd publikacji: {e}")
             return False
     
-    def save_comment_history(self, post_uri, comment):
-        """Save comment to history file"""
-        try:
-            with open('posted_comments.json', 'r') as f:
-                history = json.load(f)
-        except:
-            history = []
-        
-        history.append({
-            'post_uri': post_uri,
-            'comment': comment[:100],
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        with open('posted_comments.json', 'w') as f:
-            json.dump(history, f, indent=2)
-        
-        # Also update stats
-        self.update_stats()
-    
-    def update_stats(self):
-        """Update statistics file"""
-        try:
-            with open('finance_bot_stats.json', 'r') as f:
-                stats = json.load(f)
-        except:
-            stats = {'total_comments': 0, 'comments_today': 0}
-        
-        stats['total_comments'] = stats.get('total_comments', 0) + 1
-        stats['comments_today'] = stats.get('comments_today', 0) + 1
-        stats['last_run'] = datetime.now().isoformat()
-        
-        if self.comment_counter % 5 == 0:
-            stats['shop_links_posted'] = stats.get('shop_links_posted', 0) + 1
-        
-        with open('finance_bot_stats.json', 'w') as f:
-            json.dump(stats, f, indent=2)
+    # ============================================================================
+    # 🚀 GŁÓWNA FUNKCJA
+    # ============================================================================
     
     def run(self):
-        """Main execution"""
-        print("🚀 Starting Finance Bot")
-        print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        """Główna funkcja bota"""
+        print("="*60)
+        print("🚀 URUCHAMIAM FINANCE GROWTH BOT")
+        print("="*60)
+        print(f"⏰ Godzina: {datetime.now().strftime('%H:%M:%S')}")
         
-        # Load stats at start
-        try:
-            with open('finance_bot_stats.json', 'r') as f:
-                stats = json.load(f)
-            print(f"📊 Previous comments: {stats.get('total_comments', 0)}")
-        except:
-            print("📊 No previous stats found")
+        # Załaduj statystyki
+        stats = self.load_stats()
+        print(f"📊 Poprzednie komentarze: {stats['total_comments']}")
+        print(f"🔗 Linki do sklepu: {stats['shop_links_posted']}")
         
-        # Connect to Bluesky
+        # Połącz z Bluesky
+        print("\n🔗 Łączę się z Bluesky...")
         try:
             self.client = Client()
             self.client.login(self.handle, self.password)
-            print(f"✅ Connected as: {self.handle}")
+            print(f"✅ Połączono jako: {self.handle}")
+            
+            # Pobierz informacje o koncie
+            profile = self.client.get_profile(self.client.me.did)
+            print(f"👤 Nazwa: {getattr(profile, 'display_name', 'N/A')}")
+            print(f"👥 Obserwujący: {getattr(profile, 'followers_count', 'N/A')}")
+            
         except Exception as e:
-            print(f"❌ Connection failed: {e}")
-            # Still save stats even if connection fails
-            self.save_final_stats(0, 0)
+            print(f"❌ Błąd połączenia: {e}")
+            print("💡 Sprawdź BLUESKY_HANDLE i BLUESKY_PASSWORD")
             return
         
-        # Find posts
-        posts = self.find_posts_simple()
+        # Znajdź posty
+        print("\n" + "="*60)
+        posts = self.search_finance_posts()
         
         if not posts:
-            print("🎯 No suitable posts found this time")
-            print("💡 Tip: Follow finance accounts and like finance posts")
-            self.save_final_stats(0, 0)
+            print("\n🎯 Nie znaleziono odpowiednich postów")
+            print("\n💡 WSKAZÓWKI:")
+            print("1. Upewnij się, że konto bota obserwuje konta o finansach")
+            print("2. Poczekaj kilka godzin - nowe konta mają pusty feed")
+            print("3. Sprawdź czy konto jest aktywne na bsky.app")
+            
+            # Zapisz statystyki nawet przy braku postów
+            stats['last_run'] = datetime.now().isoformat()
+            stats['last_status'] = 'no_posts_found'
+            self.save_stats(stats)
             return
         
-        print(f"🎯 Found {len(posts)} posts to comment on")
+        print(f"\n🎯 Rozpoczynam komentowanie {min(3, len(posts))} postów")
         
-        # Comment on posts (with delays)
-        comments_made = 0
+        # Komentuj posty
+        comments_posted = 0
+        max_comments = 3  # Maksymalnie 3 komentarze na sesję
         
-        for i, post in enumerate(posts):
-            if i > 0:
-                delay = random.randint(60, 120)
-                print(f"⏳ Waiting {delay} seconds...")
-                time.sleep(delay)
+        for i, post in enumerate(posts[:max_comments]):
+            print(f"\n📝 Post {i+1}/{min(max_comments, len(posts))}")
+            print(f"   👤 Autor: @{post['author']}")
+            print(f"   👍 Polubienia: {post['likes']}")
+            print(f"   💬 Treść: {post['text'][:80]}...")
             
-            print(f"\n📝 Post {i+1}/{len(posts)}")
-            print(f"   👤 @{post['author']}")
-            print(f"   👍 {post['likes']} likes")
+            # Wygeneruj komentarz
+            comment = self.generate_relevant_comment(post['text'])
+            print(f"   🤖 Nasz komentarz: {comment[:80]}...")
             
-            # Generate and post comment
-            comment = self.generate_comment()
-            success = self.post_comment(post['uri'], post['cid'], comment)
+            # Opublikuj komentarz
+            success = self.post_comment_to_bluesky(post['uri'], post['cid'], comment)
             
             if success:
-                comments_made += 1
+                comments_posted += 1
+                
+                # Zapisz w historii
+                self.save_comment(post['uri'], comment)
+                
+                # Zaktualizuj statystyki
+                stats['total_comments'] = stats.get('total_comments', 0) + 1
+                stats['comments_today'] = stats.get('comments_today', 0) + 1
+                
+                if self.comment_counter % 5 == 0:
+                    stats['shop_links_posted'] = stats.get('shop_links_posted', 0) + 1
+                    print(f"   🔗 Dodano link do sklepu!")
             
-            if comments_made >= 2:  # Max 2 comments per run for new bot
-                print("⏹️ Reached max comments for this run")
-                break
+            # Odczekaj między komentarzami (2-4 minuty)
+            if i < len(posts[:max_comments]) - 1:
+                delay = random.randint(120, 240)
+                print(f"   ⏳ Czekam {delay//60} minut...")
+                time.sleep(delay)
         
-        # Save final stats
-        self.save_final_stats(len(posts), comments_made)
-        
-        print("\n" + "="*50)
-        print("📊 RUN COMPLETE")
-        print("="*50)
-        print(f"💬 Comments made: {comments_made}")
-        print(f"🔗 Shop links: {self.comment_counter // 5}")
-        print(f"📁 JSON files updated: ✅")
-        print("="*50)
-    
-    def save_final_stats(self, posts_found, comments_made):
-        """Save final statistics"""
-        try:
-            with open('finance_bot_stats.json', 'r') as f:
-                stats = json.load(f)
-        except:
-            stats = {}
-        
+        # Zapisz końcowe statystyki
         stats['last_run'] = datetime.now().isoformat()
-        stats['last_posts_found'] = posts_found
-        stats['last_comments_made'] = comments_made
-        stats['total_runs'] = stats.get('total_runs', 0) + 1
+        stats['last_status'] = 'success'
+        stats['last_comments'] = comments_posted
+        self.save_stats(stats)
         
-        with open('finance_bot_stats.json', 'w') as f:
-            json.dump(stats, f, indent=2)
+        # Podsumowanie
+        print("\n" + "="*60)
+        print("✅ BOT ZAKOŃCZYŁ PRACĘ")
+        print("="*60)
+        print(f"💬 Opublikowane komentarze: {comments_posted}")
+        print(f"🔗 Linki do sklepu w tej sesji: {self.comment_counter // 5}")
+        print(f"📊 Łącznie komentarzy: {stats['total_comments']}")
+        print(f"🛒 Łącznie linków: {stats['shop_links_posted']}")
         
-        print(f"💾 Statistics saved to finance_bot_stats.json")
+        # Info o następnym linku
+        next_link_at = 5 - (self.comment_counter % 5)
+        print(f"🎯 Następny link za: {next_link_at} komentarzy")
+        
+        # Weryfikacja plików
+        print("\n📁 PLIKI:")
+        for filename in ['bot_stats.json', 'comments_history.json']:
+            if os.path.exists(filename):
+                size = os.path.getsize(filename)
+                print(f"  ✅ {filename} ({size} bajtów)")
+            else:
+                print(f"  ❌ {filename} - BRAK!")
+        
+        print("\n🔗 TWÓJ SKLEP: https://www.payhip.com/daveprime")
+        print("="*60)
+
+# ============================================================================
+# 🎪 URUCHOMIENIE
+# ============================================================================
 
 if __name__ == '__main__':
-    # Check credentials
+    print("🔧 Sprawdzam konfigurację...")
+    
+    # Sprawdź zmienne środowiskowe
     if not os.getenv('BLUESKY_HANDLE'):
-        print("❌ Error: BLUESKY_HANDLE not set")
-        # Still create files for testing
-        bot = FinanceGrowthBotFixed()
-        bot.create_required_files()
+        print("❌ BRAK: BLUESKY_HANDLE")
+        print("💡 Ustaw w GitHub Secrets lub zmiennych środowiskowych")
         exit(1)
     
     if not os.getenv('BLUESKY_PASSWORD'):
-        print("❌ Error: BLUESKY_PASSWORD not set")
+        print("❌ BRAK: BLUESKY_PASSWORD")
+        print("💡 Ustaw w GitHub Secrets lub zmiennych środowiskowych")
         exit(1)
     
-    # Run bot
-    bot = FinanceGrowthBotFixed()
-    bot.run()
+    print("✅ Konfiguracja poprawna")
     
-    # Verify files exist
-    print("\n📁 FILE CHECK:")
-    for file in ['finance_bot_stats.json', 'posted_comments.json']:
-        if os.path.exists(file):
-            print(f"  ✅ {file} exists")
-            try:
-                with open(file, 'r') as f:
-                    data = json.load(f)
-                print(f"     Size: {len(data) if isinstance(data, list) else len(str(data))} chars")
-            except:
-                print(f"     Could not read {file}")
-        else:
-            print(f"  ❌ {file} missing!")
+    # Uruchom bota
+    try:
+        bot = FinanceGrowthBot()
+        bot.run()
+    except KeyboardInterrupt:
+        print("\n⏹️ Bot zatrzymany przez użytkownika")
+    except Exception as e:
+        print(f"\n❌ Niespodziewany błąd: {e}")
