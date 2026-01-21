@@ -2,16 +2,15 @@ name: 🚀 Finance Growth Bot
 
 on:
   schedule:
-    # USA prime time: 9 AM, 1 PM, 5 PM EST
-    - cron: '0 14 * * *'  # 9 AM EST = 14:00 UTC
-    - cron: '0 18 * * *'  # 1 PM EST = 18:00 UTC  
-    - cron: '0 22 * * *'  # 5 PM EST = 22:00 UTC
+    - cron: '0 14 * * *'  # 9 AM EST
+    - cron: '0 18 * * *'  # 1 PM EST  
+    - cron: '0 22 * * *'  # 5 PM EST
   workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15  # Zwiększony timeout
     
     steps:
     - name: 📥 Pobierz kod
@@ -25,58 +24,60 @@ jobs:
     - name: 📦 Zainstaluj atproto
       run: pip install atproto==0.0.48
     
-    - name: 🤖 Uruchom bota
+    - name: 🤖 Uruchom bota z auto-setup
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
-      run: python finance_growth_bot.py
+      run: |
+        echo "========================================"
+        echo "🚀 URUCHAMIANIE BOTA Z AUTO-SETUP"
+        echo "========================================"
+        python finance_growth_bot.py
     
-    - name: 📊 Zapisz pliki
+    - name: 📊 Zapisz wyniki
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: bot-files
+        name: bot-results
         path: |
           bot_stats.json
           comments_history.json
         retention-days: 7
     
-    - name: 📈 Pokaż podsumowanie
+    - name: 📈 Podsumowanie
       if: always()
       run: |
         echo ""
         echo "========================================"
-        echo "🤖 FINANCE BOT - PODSUMOWANIE"
+        echo "📊 PODSUMOWANIE"
         echo "========================================"
-        echo ""
         
-        # Sprawdź pliki
         if [ -f "bot_stats.json" ]; then
-          echo "✅ bot_stats.json istnieje"
-          TOTAL_COMMENTS=$(grep -o '"total_comments":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
-          SHOP_LINKS=$(grep -o '"shop_links_posted":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
-          echo "📊 Komentarzy: $TOTAL_COMMENTS"
-          echo "🔗 Linków do sklepu: $SHOP_LINKS"
+          echo "📈 STATYSTYKI:"
+          COMMENTS=$(grep -o '"total_comments":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
+          LINKS=$(grep -o '"shop_links":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
+          FOLLOWS=$(grep -o '"follows_done":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
+          LIKES=$(grep -o '"likes_done":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
+          
+          echo "💬 Komentarzy: $COMMENTS"
+          echo "🔗 Linków do sklepu: $LINKS"
+          echo "👥 Obserwowanych kont: $FOLLOWS"
+          echo "❤️  Polubionych postów: $LIKES"
         else
-          echo "❌ bot_stats.json nie istnieje"
+          echo "❌ Brak statystyk"
         fi
         
         if [ -f "comments_history.json" ]; then
-          FILE_SIZE=$(wc -c < comments_history.json)
-          echo "✅ comments_history.json istnieje ($FILE_SIZE bajtów)"
-          LINE_COUNT=$(grep -c '"' comments_history.json 2>/dev/null || echo "0")
-          echo "💬 Wpisów w historii: $LINE_COUNT"
-        else
-          echo "❌ comments_history.json nie istnieje"
+          SIZE=$(wc -c < comments_history.json)
+          echo "📝 Historia komentarzy: $SIZE bajtów"
         fi
         
         echo ""
         echo "========================================"
-        echo "📥 POBRANE PLIKI:"
-        echo "1. Pobierz 'bot-files' z Artifacts"
-        echo "2. Sprawdź konto Bluesky"
-        echo "3. Monitoruj payhip.com/daveprime"
-        echo ""
-        echo "🔄 NASTĘPNY RAZ:"
-        echo "9 AM, 1 PM, 5 PM EST"
+        echo "📥 DO POBRANIA: bot-results"
+        echo "🔄 NASTĘPNY RAZ ZA:"
+        echo "   - 9 AM EST (14:00 UTC)"
+        echo "   - 1 PM EST (18:00 UTC)"
+        echo "   - 5 PM EST (22:00 UTC)"
+        echo "🔗 SKLEP: https://www.payhip.com/daveprime"
         echo "========================================"
