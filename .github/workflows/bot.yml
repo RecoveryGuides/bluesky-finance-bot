@@ -27,7 +27,7 @@ jobs:
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
-      run: python guaranteed_bot.py
+      run: python finance_growth_bot.py
     
     - name: 📊 Zapisz statystyki
       if: always()
