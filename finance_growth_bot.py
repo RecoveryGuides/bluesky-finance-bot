@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
-SPECIALIST FINANCE BOT FOR BLUESKY - STARTER VERSION
-Simplified for new accounts
+Finance Growth Bot for Bluesky - FIXED VERSION
+Creates JSON files even when no posts found
 """
 
 import json
 import random
 import time
-import re
-from datetime import datetime, timedelta
 import os
+from datetime import datetime
 from typing import List, Dict
 from atproto import Client, models
 
-# Financial sentences (same as before - 100 sentences)
+# Financial sentences (first 20 for example)
 FINANCIAL_SENTENCES = [
     # Debt & Credit (25 sentences)
     "Stressed about debt? You're not alone. The first step is knowing your options.",
@@ -124,39 +123,53 @@ FINANCIAL_SENTENCES = [
     "Your financial future is created by today's small decisions."
 ]
 
-class FinanceGrowthBotStarter:
+class FinanceGrowthBotFixed:
     def __init__(self):
         self.handle = os.getenv('BLUESKY_HANDLE', '')
         self.password = os.getenv('BLUESKY_PASSWORD', '')
         self.client = None
         
-        # Create data files
-        self.create_data_files()
+        # 🔥 NAJPIERW TWORZYMY PLIKI!
+        self.create_required_files()
         
         # Counters
         self.comment_counter = 0
-        self.commented_posts = set()
+        self.commented_posts = self.load_commented_posts()
         
-        print(f"🤖 Finance Growth Bot (Starter Edition)")
-        print(f"📊 {len(FINANCIAL_SENTENCES)} financial sentences loaded")
+        print(f"🤖 Finance Growth Bot v2.0")
+        print(f"📊 {len(FINANCIAL_SENTENCES)} sentences loaded")
     
-    def create_data_files(self):
-        """Create necessary data files"""
-        if not os.path.exists('finance_bot_stats.json'):
-            with open('finance_bot_stats.json', 'w') as f:
-                json.dump({
-                    'total_comments': 0,
-                    'comments_today': 0,
-                    'last_reset': datetime.now().isoformat(),
-                    'shop_links_posted': 0
-                }, f)
+    def create_required_files(self):
+        """Create all required data files"""
+        files = {
+            'finance_bot_stats.json': {
+                'total_comments': 0,
+                'comments_today': 0,
+                'shop_links_posted': 0,
+                'last_reset': datetime.now().isoformat(),
+                'created': datetime.now().isoformat(),
+                'bot_status': 'active'
+            },
+            'posted_comments.json': []
+        }
         
-        if not os.path.exists('posted_comments.json'):
-            with open('posted_comments.json', 'w') as f:
-                json.dump([], f)
+        for filename, default_data in files.items():
+            if not os.path.exists(filename):
+                with open(filename, 'w') as f:
+                    json.dump(default_data, f, indent=2)
+                print(f"📁 Created {filename}")
+    
+    def load_commented_posts(self):
+        """Load posts we've already commented on"""
+        try:
+            with open('posted_comments.json', 'r') as f:
+                comments = json.load(f)
+                return set([c.get('post_uri', '') for c in comments if c.get('post_uri')])
+        except:
+            return set()
     
     def should_add_shop_link(self):
-        """Every 5th comment includes shop link"""
+        """Add shop link every 5th comment"""
         self.comment_counter += 1
         return self.comment_counter % 5 == 0
     
@@ -164,43 +177,47 @@ class FinanceGrowthBotStarter:
         """Add shop link to comment"""
         shop_link = "https://www.payhip.com/daveprime"
         ctas = [
-            f"\n\n👉 For actionable templates: {shop_link}",
-            f"\n\n🔗 Step-by-step guides: {shop_link}",
+            f"\n\n👉 Practical guides: {shop_link}",
+            f"\n\n🔗 Templates & scripts: {shop_link}",
         ]
         return comment + random.choice(ctas)
     
-    def find_simple_targets(self):
-        """Simple target finding for new accounts"""
+    def find_posts_simple(self):
+        """Simple post finding for new accounts"""
         print("🔍 Searching for finance posts...")
         
+        posts_found = []
+        
+        if not self.client:
+            return posts_found
+        
         try:
-            # Method 1: Search finance hashtags
+            # Try searching popular finance hashtags
             hashtags = ['personalfinance', 'debt', 'money', 'budget']
-            targets = []
             
-            for hashtag in hashtags[:2]:  # Try first 2 hashtags
+            for hashtag in hashtags:
                 try:
                     print(f"  Searching #{hashtag}...")
                     results = self.client.app.bsky.feed.search_posts(
                         q=f'#{hashtag}',
-                        limit=15
+                        limit=10
                     )
                     
                     for post in results.posts:
-                        # Skip if already commented
+                        # Basic filters
                         if post.uri in self.commented_posts:
                             continue
                         
-                        # Skip if very low engagement
+                        if post.author.did == self.client.me.did:
+                            continue
+                        
                         if post.like_count < 5:
                             continue
                         
-                        # Check if finance related
-                        post_text = post.record.text.lower()
-                        finance_words = ['debt', 'credit', 'money', 'finance', 'budget', 'loan']
-                        
-                        if any(word in post_text for word in finance_words):
-                            targets.append({
+                        # Check if finance-related
+                        text = post.record.text.lower()
+                        if any(word in text for word in ['debt', 'credit', 'money', 'loan', 'finance']):
+                            posts_found.append({
                                 'uri': post.uri,
                                 'cid': post.cid,
                                 'text': post.record.text,
@@ -208,27 +225,26 @@ class FinanceGrowthBotStarter:
                                 'likes': post.like_count
                             })
                             
-                            if len(targets) >= 3:  # Get max 3 posts
-                                break
+                            if len(posts_found) >= 3:
+                                return posts_found
                                 
                 except Exception as e:
-                    print(f"  Warning searching #{hashtag}: {e}")
+                    print(f"  ⚠️  Error with #{hashtag}: {e}")
                     continue
-            
-            return targets
-            
+        
         except Exception as e:
             print(f"❌ Search error: {e}")
-            return []
+        
+        return posts_found
     
     def generate_comment(self):
-        """Generate financial comment"""
+        """Generate a financial comment"""
         # Pick 1-2 random sentences
-        num = random.choice([1, 1, 2])
+        num = random.choice([1, 2])
         sentences = random.sample(FINANCIAL_SENTENCES, num)
         comment = " ".join(sentences)
         
-        # Add shop link if 5th comment
+        # Add shop link if it's the 5th comment
         if self.should_add_shop_link():
             comment = self.format_with_shop_link(comment)
             print("🔗 Adding shop link (every 5th comment)")
@@ -236,7 +252,7 @@ class FinanceGrowthBotStarter:
         return comment
     
     def post_comment(self, post_uri, post_cid, comment):
-        """Post comment to Bluesky"""
+        """Post a comment to Bluesky"""
         try:
             parent_ref = models.create_strong_ref(post_uri, post_cid)
             
@@ -248,20 +264,38 @@ class FinanceGrowthBotStarter:
                 )
             )
             
-            print(f"💬 Commented: {comment[:80]}...")
-            
             # Save to history
-            self.commented_posts.add(post_uri)
-            self.save_stats()
+            self.save_comment_history(post_uri, comment)
             
+            print(f"💬 Comment posted: {comment[:60]}...")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to comment: {e}")
+            print(f"❌ Failed to post comment: {e}")
             return False
     
-    def save_stats(self):
-        """Update statistics"""
+    def save_comment_history(self, post_uri, comment):
+        """Save comment to history file"""
+        try:
+            with open('posted_comments.json', 'r') as f:
+                history = json.load(f)
+        except:
+            history = []
+        
+        history.append({
+            'post_uri': post_uri,
+            'comment': comment[:100],
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        with open('posted_comments.json', 'w') as f:
+            json.dump(history, f, indent=2)
+        
+        # Also update stats
+        self.update_stats()
+    
+    def update_stats(self):
+        """Update statistics file"""
         try:
             with open('finance_bot_stats.json', 'r') as f:
                 stats = json.load(f)
@@ -270,6 +304,7 @@ class FinanceGrowthBotStarter:
         
         stats['total_comments'] = stats.get('total_comments', 0) + 1
         stats['comments_today'] = stats.get('comments_today', 0) + 1
+        stats['last_run'] = datetime.now().isoformat()
         
         if self.comment_counter % 5 == 0:
             stats['shop_links_posted'] = stats.get('shop_links_posted', 0) + 1
@@ -279,8 +314,16 @@ class FinanceGrowthBotStarter:
     
     def run(self):
         """Main execution"""
-        print("🚀 Starting Finance Growth Bot")
+        print("🚀 Starting Finance Bot")
         print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+        # Load stats at start
+        try:
+            with open('finance_bot_stats.json', 'r') as f:
+                stats = json.load(f)
+            print(f"📊 Previous comments: {stats.get('total_comments', 0)}")
+        except:
+            print("📊 No previous stats found")
         
         # Connect to Bluesky
         try:
@@ -289,26 +332,31 @@ class FinanceGrowthBotStarter:
             print(f"✅ Connected as: {self.handle}")
         except Exception as e:
             print(f"❌ Connection failed: {e}")
+            # Still save stats even if connection fails
+            self.save_final_stats(0, 0)
             return
         
-        # Find targets
-        targets = self.find_simple_targets()
+        # Find posts
+        posts = self.find_posts_simple()
         
-        if not targets:
-            print("🎯 No finance posts found right now")
-            print("💡 TIP: Follow finance accounts and like finance posts")
+        if not posts:
+            print("🎯 No suitable posts found this time")
+            print("💡 Tip: Follow finance accounts and like finance posts")
+            self.save_final_stats(0, 0)
             return
         
-        print(f"🎯 Found {len(targets)} finance posts")
+        print(f"🎯 Found {len(posts)} posts to comment on")
         
-        # Comment on each (with delays)
-        for i, post in enumerate(targets):
+        # Comment on posts (with delays)
+        comments_made = 0
+        
+        for i, post in enumerate(posts):
             if i > 0:
-                delay = random.randint(60, 180)  # 1-3 minutes
+                delay = random.randint(60, 120)
                 print(f"⏳ Waiting {delay} seconds...")
                 time.sleep(delay)
             
-            print(f"\n📝 Post {i+1}/{len(targets)}")
+            print(f"\n📝 Post {i+1}/{len(posts)}")
             print(f"   👤 @{post['author']}")
             print(f"   👍 {post['likes']} likes")
             
@@ -316,28 +364,69 @@ class FinanceGrowthBotStarter:
             comment = self.generate_comment()
             success = self.post_comment(post['uri'], post['cid'], comment)
             
-            if success and i >= 2:  # Max 3 comments per run
+            if success:
+                comments_made += 1
+            
+            if comments_made >= 2:  # Max 2 comments per run for new bot
                 print("⏹️ Reached max comments for this run")
                 break
         
-        # Summary
+        # Save final stats
+        self.save_final_stats(len(posts), comments_made)
+        
         print("\n" + "="*50)
-        print("📊 BOT SUMMARY")
+        print("📊 RUN COMPLETE")
         print("="*50)
-        print(f"💬 Comments posted this run: {min(3, len(targets))}")
-        print(f"🔗 Shop links posted: {self.comment_counter // 5}")
-        print(f"🎯 Next shop link at comment #{5 - (self.comment_counter % 5)}")
+        print(f"💬 Comments made: {comments_made}")
+        print(f"🔗 Shop links: {self.comment_counter // 5}")
+        print(f"📁 JSON files updated: ✅")
         print("="*50)
-        print("💡 TIPS FOR BETTER RESULTS:")
-        print("1. Follow finance accounts on your Bluesky bot account")
-        print("2. Like finance-related posts")
-        print("3. Use finance hashtags in your searches")
-        print("="*50)
+    
+    def save_final_stats(self, posts_found, comments_made):
+        """Save final statistics"""
+        try:
+            with open('finance_bot_stats.json', 'r') as f:
+                stats = json.load(f)
+        except:
+            stats = {}
+        
+        stats['last_run'] = datetime.now().isoformat()
+        stats['last_posts_found'] = posts_found
+        stats['last_comments_made'] = comments_made
+        stats['total_runs'] = stats.get('total_runs', 0) + 1
+        
+        with open('finance_bot_stats.json', 'w') as f:
+            json.dump(stats, f, indent=2)
+        
+        print(f"💾 Statistics saved to finance_bot_stats.json")
 
 if __name__ == '__main__':
-    if not os.getenv('BLUESKY_HANDLE') or not os.getenv('BLUESKY_PASSWORD'):
-        print("❌ Missing Bluesky credentials")
+    # Check credentials
+    if not os.getenv('BLUESKY_HANDLE'):
+        print("❌ Error: BLUESKY_HANDLE not set")
+        # Still create files for testing
+        bot = FinanceGrowthBotFixed()
+        bot.create_required_files()
         exit(1)
     
-    bot = FinanceGrowthBotStarter()
+    if not os.getenv('BLUESKY_PASSWORD'):
+        print("❌ Error: BLUESKY_PASSWORD not set")
+        exit(1)
+    
+    # Run bot
+    bot = FinanceGrowthBotFixed()
     bot.run()
+    
+    # Verify files exist
+    print("\n📁 FILE CHECK:")
+    for file in ['finance_bot_stats.json', 'posted_comments.json']:
+        if os.path.exists(file):
+            print(f"  ✅ {file} exists")
+            try:
+                with open(file, 'r') as f:
+                    data = json.load(f)
+                print(f"     Size: {len(data) if isinstance(data, list) else len(str(data))} chars")
+            except:
+                print(f"     Could not read {file}")
+        else:
+            print(f"  ❌ {file} missing!")
