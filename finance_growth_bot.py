@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-FINANCE GROWTH BOT - SIMPLE VERSION
+FINANCE GROWTH BOT - AUTO SETUP VERSION
+Bot sam przygotowuje konto przed komentowaniem
 """
 
 import json
@@ -120,7 +121,24 @@ SENTENCES = [
     "Your financial future is created by today's small decisions."
 ]
 
-class SimpleFinanceBot:
+# Popular finance accounts to follow
+FINANCE_ACCOUNTS = [
+    "wsj.bsky.social",
+    "nytimesbusiness.bsky.social", 
+    "bloomberg.bsky.social",
+    "theeconomist.bsky.social",
+    "cnbc.bsky.social",
+    "ft.bsky.social",
+    "business.bsky.social",
+    "forbes.bsky.social",
+    "reuters.bsky.social",
+    "ap.bsky.social",
+    "financeprofessors.bsky.social",
+    "personalfinance.bsky.social",
+    "money.bsky.social"
+]
+
+class AutoSetupFinanceBot:
     def __init__(self):
         self.handle = os.getenv('BLUESKY_HANDLE')
         self.password = os.getenv('BLUESKY_PASSWORD')
@@ -130,7 +148,7 @@ class SimpleFinanceBot:
         # Create files
         self.create_files()
         
-        print("🤖 Simple Finance Bot started")
+        print("🤖 Finance Bot with Auto-Setup")
     
     def create_files(self):
         """Create data files"""
@@ -138,6 +156,8 @@ class SimpleFinanceBot:
             data = {
                 'total_comments': 0,
                 'shop_links': 0,
+                'follows_done': 0,
+                'likes_done': 0,
                 'created': datetime.now().isoformat()
             }
             with open('bot_stats.json', 'w') as f:
@@ -153,67 +173,180 @@ class SimpleFinanceBot:
             with open('bot_stats.json', 'r') as f:
                 return json.load(f)
         except:
-            return {'total_comments': 0, 'shop_links': 0}
+            return {'total_comments': 0, 'shop_links': 0, 'follows_done': 0}
     
     def save_stats(self, stats):
         """Save statistics"""
         with open('bot_stats.json', 'w') as f:
             json.dump(stats, f, indent=2)
     
-    def save_comment(self, post_uri, comment):
-        """Save comment to history"""
-        try:
-            with open('comments_history.json', 'r') as f:
-                history = json.load(f)
-        except:
-            history = []
+    def setup_account(self):
+        """Auto-follow finance accounts and like posts"""
+        print("⚙️  Setting up account...")
         
-        history.append({
-            'post_uri': post_uri,
-            'comment': comment[:150],
-            'time': datetime.now().isoformat()
-        })
+        stats = self.load_stats()
         
-        with open('comments_history.json', 'w') as f:
-            json.dump(history, f)
+        # Check if we need to follow accounts
+        if stats.get('follows_done', 0) < 5:
+            print("  👥 Following finance accounts...")
+            follows_added = 0
+            
+            for account in FINANCE_ACCOUNTS[:8]:  # First 8 accounts
+                try:
+                    # Get profile
+                    profile = self.client.get_profile(account)
+                    
+                    # Follow if not already following
+                    self.client.follow(profile.did)
+                    follows_added += 1
+                    print(f"    ✅ Followed @{account}")
+                    
+                    # Wait between follows
+                    time.sleep(random.randint(2, 5))
+                    
+                    if follows_added >= 5:  # Follow 5 accounts max
+                        break
+                        
+                except Exception as e:
+                    print(f"    ⚠️  Could not follow @{account}: {str(e)[:50]}")
+                    continue
+            
+            stats['follows_done'] = stats.get('follows_done', 0) + follows_added
+            self.save_stats(stats)
+        
+        # Like some finance posts
+        if stats.get('likes_done', 0) < 10:
+            print("  ❤️  Liking finance posts...")
+            likes_added = 0
+            
+            try:
+                # Search for finance posts to like
+                response = self.client.app.bsky.feed.search_posts(
+                    params={'q': 'debt OR finance OR money', 'limit': 20}
+                )
+                
+                for post in response.posts:
+                    if likes_added >= 8:  # Like 8 posts max
+                        break
+                    
+                    # Don't like own posts
+                    if post.author.did == self.client.me.did:
+                        continue
+                    
+                    # Like the post
+                    try:
+                        self.client.like(post.uri, post.cid)
+                        likes_added += 1
+                        print(f"    ✅ Liked post from @{post.author.handle}")
+                        time.sleep(random.randint(1, 3))
+                    except:
+                        continue
+                        
+            except Exception as e:
+                print(f"    ⚠️  Could not like posts: {str(e)[:50]}")
+            
+            stats['likes_done'] = stats.get('likes_done', 0) + likes_added
+            self.save_stats(stats)
+        
+        print("✅ Account setup complete")
+        return True
     
-    def find_posts(self):
-        """Find finance posts"""
-        print("🔍 Looking for finance posts...")
+    def find_posts_improved(self):
+        """Improved post finding with multiple methods"""
+        print("🔍 Searching for finance posts...")
         
         posts = []
         
         try:
-            # Get timeline
-            timeline = self.client.get_timeline(limit=40)
-            
-            for item in timeline.feed:
-                post = item.post
+            # METHOD 1: Search finance hashtags
+            print("  🔎 Searching #personalfinance...")
+            try:
+                response = self.client.app.bsky.feed.search_posts(
+                    params={'q': '#personalfinance', 'limit': 15}
+                )
                 
-                # Skip if too few likes
-                if post.like_count < 15:
-                    continue
-                
-                # Check if finance related
-                text = post.record.text.lower()
-                keywords = ['debt', 'credit', 'money', 'finance', 'budget', 'loan']
-                
-                if any(keyword in text for keyword in keywords):
-                    posts.append({
-                        'uri': post.uri,
-                        'cid': post.cid,
-                        'text': post.record.text,
-                        'author': post.author.handle,
-                        'likes': post.like_count
-                    })
-                    
+                for post in response.posts:
                     if len(posts) >= 5:
                         break
+                    
+                    if post.like_count >= 10:  # Min 10 likes
+                        posts.append({
+                            'uri': post.uri,
+                            'cid': post.cid,
+                            'text': post.record.text,
+                            'author': post.author.handle,
+                            'likes': post.like_count
+                        })
+                        print(f"    ✅ #{'personalfinance'}: @{post.author.handle} ({post.like_count} likes)")
+                        
+            except Exception as e:
+                print(f"    ⚠️  Search error: {str(e)[:50]}")
+            
+            # METHOD 2: Search debt posts
+            if len(posts) < 3:
+                print("  🔎 Searching 'debt'...")
+                try:
+                    response = self.client.app.bsky.feed.search_posts(
+                        params={'q': 'debt', 'limit': 15}
+                    )
+                    
+                    for post in response.posts:
+                        if len(posts) >= 5:
+                            break
+                        
+                        if post.like_count >= 8:  # Min 8 likes
+                            posts.append({
+                                'uri': post.uri,
+                                'cid': post.cid,
+                                'text': post.record.text,
+                                'author': post.author.handle,
+                                'likes': post.like_count
+                            })
+                            print(f"    ✅ 'debt': @{post.author.handle} ({post.like_count} likes)")
+                            
+                except Exception as e:
+                    print(f"    ⚠️  Search error: {str(e)[:50]}")
+            
+            # METHOD 3: Get timeline (lowest priority)
+            if len(posts) == 0:
+                print("  📰 Checking timeline...")
+                try:
+                    timeline = self.client.get_timeline(limit=30)
+                    
+                    for item in timeline.feed:
+                        post = item.post
+                        
+                        if len(posts) >= 3:
+                            break
+                        
+                        if post.like_count >= 15:  # Higher threshold for timeline
+                            text = post.record.text.lower()
+                            if any(word in text for word in ['debt', 'money', 'finance', 'credit']):
+                                posts.append({
+                                    'uri': post.uri,
+                                    'cid': post.cid,
+                                    'text': post.record.text,
+                                    'author': post.author.handle,
+                                    'likes': post.like_count
+                                })
+                                print(f"    ✅ Timeline: @{post.author.handle} ({post.like_count} likes)")
+                                
+                except Exception as e:
+                    print(f"    ⚠️  Timeline error: {str(e)[:50]}")
         
         except Exception as e:
-            print(f"Error finding posts: {e}")
+            print(f"❌ Error finding posts: {e}")
         
-        return posts
+        # Remove duplicates
+        unique_posts = []
+        seen_uris = set()
+        for post in posts:
+            if post['uri'] not in seen_uris:
+                seen_uris.add(post['uri'])
+                unique_posts.append(post)
+        
+        print(f"🎯 Found {len(unique_posts)} unique posts")
+        return unique_posts
     
     def generate_comment(self):
         """Generate a comment"""
@@ -244,16 +377,35 @@ class SimpleFinanceBot:
             
             return True
         except Exception as e:
-            print(f"Error posting comment: {e}")
+            print(f"❌ Error posting comment: {e}")
             return False
+    
+    def save_comment(self, post_uri, comment):
+        """Save comment to history"""
+        try:
+            with open('comments_history.json', 'r') as f:
+                history = json.load(f)
+        except:
+            history = []
+        
+        history.append({
+            'post_uri': post_uri,
+            'comment': comment[:150],
+            'time': datetime.now().isoformat()
+        })
+        
+        with open('comments_history.json', 'w') as f:
+            json.dump(history, f)
     
     def run(self):
         """Main function"""
-        print("🚀 Starting bot...")
+        print("="*60)
+        print("🚀 FINANCE GROWTH BOT")
+        print("="*60)
         
         # Check credentials
         if not self.handle or not self.password:
-            print("❌ Missing credentials")
+            print("❌ Missing BLUESKY_HANDLE or BLUESKY_PASSWORD")
             return
         
         # Connect to Bluesky
@@ -265,23 +417,35 @@ class SimpleFinanceBot:
             print(f"❌ Connection failed: {e}")
             return
         
+        # Auto-setup account (follow & like)
+        self.setup_account()
+        
+        # Wait a bit for feed to update
+        print("⏳ Waiting for feed to update...")
+        time.sleep(10)
+        
         # Find posts
-        posts = self.find_posts()
+        posts = self.find_posts_improved()
         
         if not posts:
-            print("🎯 No suitable posts found")
-            print("💡 Follow finance accounts and like finance posts")
+            print("\n🎯 No finance posts found yet")
+            print("\n💡 TIPS:")
+            print("1. Bot automatically followed finance accounts")
+            print("2. Bot liked finance posts")
+            print("3. Wait 1-2 hours for feed to populate")
+            print("4. Next run should find posts")
             return
         
-        print(f"🎯 Found {len(posts)} posts")
+        print(f"\n🎯 Ready to comment on {min(3, len(posts))} posts")
         
         # Comment on posts
         stats = self.load_stats()
         posted = 0
         
         for i, post in enumerate(posts[:3]):  # Max 3 comments
-            print(f"\n📝 Post {i+1}")
-            print(f"   👤 @{post['author']} ({post['likes']} likes)")
+            print(f"\n📝 Post {i+1}/{min(3, len(posts))}")
+            print(f"   👤 @{post['author']}")
+            print(f"   👍 {post['likes']} likes")
             print(f"   📄 {post['text'][:80]}...")
             
             # Generate comment
@@ -293,37 +457,50 @@ class SimpleFinanceBot:
             
             if success:
                 posted += 1
-                stats['total_comments'] += 1
+                stats['total_comments'] = stats.get('total_comments', 0) + 1
                 
                 # Save comment
                 self.save_comment(post['uri'], comment)
                 
                 # Check if shop link was added
                 if self.comment_count % 5 == 0:
-                    stats['shop_links'] += 1
+                    stats['shop_links'] = stats.get('shop_links', 0) + 1
                     print("   🔗 Added shop link!")
             
-            # Wait between comments
+            # Wait between comments (2-3 minutes)
             if i < len(posts[:3]) - 1:
                 delay = random.randint(120, 180)
-                print(f"   ⏳ Waiting {delay} seconds...")
+                print(f"   ⏳ Waiting {delay//60} minutes...")
                 time.sleep(delay)
         
         # Save final stats
         stats['last_run'] = datetime.now().isoformat()
+        stats['last_posts_found'] = len(posts)
+        stats['last_comments_posted'] = posted
         self.save_stats(stats)
         
         # Summary
-        print("\n" + "="*50)
-        print("✅ BOT FINISHED")
-        print("="*50)
-        print(f"💬 Comments posted: {posted}")
+        print("\n" + "="*60)
+        print("✅ BOT FINISHED SUCCESSFULLY")
+        print("="*60)
+        print(f"💬 Comments posted this run: {posted}")
         print(f"📊 Total comments: {stats['total_comments']}")
         print(f"🔗 Shop links: {stats['shop_links']}")
+        print(f"👥 Accounts followed: {stats.get('follows_done', 0)}")
+        print(f"❤️  Posts liked: {stats.get('likes_done', 0)}")
         print(f"🎯 Next shop link in: {5 - (self.comment_count % 5)} comments")
-        print("="*50)
+        print("="*60)
+        
+        # File check
+        print("\n📁 FILES CREATED:")
+        for filename in ['bot_stats.json', 'comments_history.json']:
+            if os.path.exists(filename):
+                size = os.path.getsize(filename)
+                print(f"  ✅ {filename} ({size} bytes)")
+            else:
+                print(f"  ❌ {filename} - MISSING!")
 
 # Run bot
 if __name__ == '__main__':
-    bot = SimpleFinanceBot()
+    bot = AutoSetupFinanceBot()
     bot.run()
