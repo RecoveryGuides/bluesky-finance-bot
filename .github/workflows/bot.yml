@@ -29,7 +29,7 @@ jobs:
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
       run: |
         echo "🕒 ULTIMATE BOT - 1 COMMENT PER HOUR"
-        python ultimate_bot.py
+        python finance_growth_bot.py
     
     - name: 📊 Zapisz wyniki
       if: always()
