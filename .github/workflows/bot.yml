@@ -1,0 +1,59 @@
+name: 🎯 Finance Growth Bot
+
+on:
+  schedule:
+    # USA prime time (9 AM, 1 PM, 5 PM EST)
+    - cron: '0 14 * * *'  # 9 AM EST = 14:00 UTC
+    - cron: '0 18 * * *'  # 1 PM EST = 18:00 UTC
+    - cron: '0 22 * * *'  # 5 PM EST = 22:00 UTC
+  workflow_dispatch:  # Ręczne uruchomienie
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: 📥 Pobierz kod
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Ustaw Pythona
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: 📦 Zainstaluj biblioteki
+      run: pip install atproto
+    
+    - name: 🤖 Uruchom bota finansowego
+      env:
+        BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+        BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
+      run: python finance_growth_bot.py
+    
+    - name: 📊 Zapisz statystyki
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: bot-statistics
+        path: |
+          finance_bot_stats.json
+          posted_comments.json
+        retention-days: 30
+    
+    - name: 📈 Podsumowanie
+      if: always()
+      run: |
+        echo "========================================"
+        echo "🤖 BOT ZAKOŃCZYŁ PRACĘ"
+        echo "========================================"
+        echo ""
+        echo "Jeśli chcesz zobaczyć statystyki:"
+        echo "1. Kliknij na tę 'run' workflow"
+        echo "2. Przewiń do sekcji 'Artifacts'"
+        echo "3. Pobierz 'bot-statistics'"
+        echo ""
+        echo "Następne uruchomienie:"
+        echo "- 9 AM EST (14:00 UTC)"
+        echo "- 1 PM EST (18:00 UTC)"
+        echo "- 5 PM EST (22:00 UTC)"
