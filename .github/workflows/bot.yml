@@ -1,40 +1,39 @@
-name: 🕒 Guaranteed Bot - Every 2 hours
+name: 🤖 Bot
 
 on:
   schedule:
-    # Co 2 godziny, różne minuty dla naturalności
-    - cron: '23 */2 * * *'  # 0:23, 2:23, 4:23, 6:23, 8:23, 10:23, 12:23, 14:23, 16:23, 18:23, 20:23, 22:23
+    - cron: '17 */2 * * *'  # Co 2 godziny
   workflow_dispatch:
 
 jobs:
-  run-bot:
+  run:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 3
     
     steps:
     - name: 📥 Pobierz kod
       uses: actions/checkout@v4
     
-    - name: 🐍 Ustaw Pythona
+    - name: 🐍 Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
     
-    - name: 📦 Zainstaluj atproto
+    - name: 📦 Zależności
       run: pip install atproto==0.0.48
     
-    - name: 🤖 Uruchom bota z historią
+    - name: 🤖 Uruchom
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
-      run: bot.py
+      run: python bot.py
     
-    - name: 📊 Zapisz wyniki
+    - name: 📊 Zapisz
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: bot-data
+        name: data
         path: |
-          bot_stats.json
-          commented_posts.json
+          stats.json
+          history.json
         retention-days: 30
