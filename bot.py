@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-GUARANTEED WORKING BOT - FINAL VERSION
-1 komentarz co 2 godziny, zawsze znajduje post, dodaje link co 5 komentarz
+GUARANTEED BOT WITH HISTORY TRACKING
+1 komentarz co 2 godziny, nie komentuje tego samego posta 2x, dodaje link co 5 komentarz
 """
 
 import json
@@ -17,22 +17,22 @@ from atproto import Client, models
 
 TOPICS = {
     # Podstawowe (zawsze znajdzie)
-    'money': ['money', 'cash', 'dollar', 'finance', 'financial', 'budget'],
-    'life': ['life', 'living', 'day', 'today', 'people', 'world', 'time'],
-    'help': ['help', 'advice', 'tip', 'suggestion', 'recommend', 'support'],
-    'problem': ['problem', 'issue', 'trouble', 'difficult', 'hard', 'challenge'],
-    'question': ['question', 'ask', 'wonder', 'curious', 'thinking', 'opinion'],
+    'money': ['money', 'cash', 'dollar', 'finance', 'financial', 'budget', 'spend', 'save'],
+    'life': ['life', 'living', 'day', 'today', 'people', 'world', 'time', 'experience'],
+    'help': ['help', 'advice', 'tip', 'suggestion', 'recommend', 'support', 'guide'],
+    'problem': ['problem', 'issue', 'trouble', 'difficult', 'hard', 'challenge', 'struggle'],
+    'question': ['question', 'ask', 'wonder', 'curious', 'thinking', 'opinion', 'discuss'],
     
     # Twoje tematy
-    'survival': ['survival', 'prepper', 'emergency', 'crisis', 'prepared', 'disaster'],
-    'debt': ['debt', 'credit', 'loan', 'owe', 'borrow', 'lend', 'payment'],
-    'health': ['medical', 'hospital', 'doctor', 'health', 'bill', 'insurance'],
-    'work': ['work', 'job', 'career', 'business', 'boss', 'employer', 'income'],
-    'home': ['home', 'house', 'rent', 'mortgage', 'property', 'living'],
-    'family': ['family', 'kids', 'children', 'parents', 'partner', 'relationship'],
-    'future': ['future', 'plan', 'goal', 'dream', 'retirement', 'savings'],
-    'stress': ['stress', 'anxiety', 'worry', 'overwhelmed', 'pressure', 'mental'],
-    'success': ['success', 'win', 'achieve', 'accomplish', 'progress', 'growth'],
+    'survival': ['survival', 'prepper', 'emergency', 'crisis', 'prepared', 'disaster', 'shtf'],
+    'debt': ['debt', 'credit', 'loan', 'owe', 'borrow', 'lend', 'payment', 'collection'],
+    'health': ['medical', 'hospital', 'doctor', 'health', 'bill', 'insurance', 'treatment'],
+    'work': ['work', 'job', 'career', 'business', 'boss', 'employer', 'income', 'salary'],
+    'home': ['home', 'house', 'rent', 'mortgage', 'property', 'living', 'apartment'],
+    'family': ['family', 'kids', 'children', 'parents', 'partner', 'relationship', 'marriage'],
+    'future': ['future', 'plan', 'goal', 'dream', 'retirement', 'savings', 'investment'],
+    'stress': ['stress', 'anxiety', 'worry', 'overwhelmed', 'pressure', 'mental', 'depression'],
+    'success': ['success', 'win', 'achieve', 'accomplish', 'progress', 'growth', 'improvement'],
 }
 
 # Wszystkie słowa kluczowe razem
@@ -53,6 +53,11 @@ COMMENTS = [
     "Having a clear plan reduces anxiety significantly. Break big problems into small steps.",
     
     # Finansowe
+    "Financial stress affects so many people. Tracking expenses is the first step to control.",
+    "Debt can feel overwhelming, but negotiation and payment plans are often possible.",
+    "Medical bills have more flexibility than people realize. Always ask for options.",
+    "Building even a small emergency fund creates psychological safety.",
+    "Automating finances was a game-changer for me. One less thing to worry about.",
     "Stressed about debt? You're not alone. The first step is knowing your options.",
     "Credit card companies don't want you to know these negotiation scripts.",
     "Did you know you can often settle debt for 30-50% less? True story.",
@@ -173,21 +178,23 @@ COMMENTS = [
 # 🤖 KLASA BOTA
 # ============================================================================
 
-class GuaranteedBot:
+class GuaranteedBotWithHistory:
     def __init__(self):
         self.handle = os.getenv('BLUESKY_HANDLE')
         self.password = os.getenv('BLUESKY_PASSWORD')
         self.client = None
         self.comment_counter = 0
         
-        # Statystyki
+        # Pliki danych
         self.stats_file = 'bot_stats.json'
-        self.setup_stats()
+        self.history_file = 'commented_posts.json'
+        self.setup_files()
         
-        print("🤖 GUARANTEED BOT - Always finds posts")
+        print("🤖 GUARANTEED BOT WITH HISTORY TRACKING")
     
-    def setup_stats(self):
-        """Setup statistics file"""
+    def setup_files(self):
+        """Setup all data files"""
+        # Stats file
         if not os.path.exists(self.stats_file):
             with open(self.stats_file, 'w') as f:
                 json.dump({
@@ -197,6 +204,14 @@ class GuaranteedBot:
                     'created': datetime.now().isoformat(),
                     'daily_comments': 0,
                     'last_reset': datetime.now().isoformat()
+                }, f)
+        
+        # History file - przechowuje już skomentowane posty
+        if not os.path.exists(self.history_file):
+            with open(self.history_file, 'w') as f:
+                json.dump({
+                    'commented_posts': [],
+                    'last_updated': datetime.now().isoformat()
                 }, f)
     
     def load_stats(self):
@@ -221,20 +236,53 @@ class GuaranteedBot:
         with open(self.stats_file, 'w') as f:
             json.dump(stats, f, indent=2)
     
+    def load_commented_posts(self):
+        """Load already commented posts"""
+        try:
+            with open(self.history_file, 'r') as f:
+                data = json.load(f)
+                return set(data.get('commented_posts', []))
+        except:
+            return set()
+    
+    def save_commented_post(self, post_uri):
+        """Save commented post to history"""
+        try:
+            with open(self.history_file, 'r') as f:
+                data = json.load(f)
+        except:
+            data = {'commented_posts': [], 'last_updated': ''}
+        
+        # Add new post if not already there
+        if post_uri not in data['commented_posts']:
+            data['commented_posts'].append(post_uri)
+            data['last_updated'] = datetime.now().isoformat()
+            
+            # Keep only last 200 posts to prevent file from growing too large
+            if len(data['commented_posts']) > 200:
+                data['commented_posts'] = data['commented_posts'][-200:]
+            
+            with open(self.history_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            print(f"  📝 Added to history: {post_uri[:50]}...")
+    
     # ============================================================================
-    # 🎯 GWARANTOWANE ZNALEZIENIE POSTU
+    # 🎯 GWARANTOWANE ZNALEZIENIE POSTU (Z HISTORIĄ)
     # ============================================================================
     
     def find_post_guaranteed(self):
-        """Find a post with 100% guarantee - multiple fallback methods"""
-        print("🎯 GUARANTEED POST FINDER")
+        """Find a post with 100% guarantee - checks history first"""
+        print("🎯 GUARANTEED POST FINDER (with history check)")
         
         all_posts = []
+        commented_posts = self.load_commented_posts()
+        print(f"  📋 Already commented on: {len(commented_posts)} posts")
         
         # METHOD 1: Get timeline with ERROR HANDLING
         print("  📰 Method 1: Safe timeline scan")
         try:
-            timeline = self.client.get_timeline(limit=40)
+            timeline = self.client.get_timeline(limit=50)
             
             if hasattr(timeline, 'feed'):
                 for i, item in enumerate(timeline.feed):
@@ -249,21 +297,34 @@ class GuaranteedBot:
                         if post.author.did == self.client.me.did:
                             continue
                         
-                        # Skip very low engagement
-                        if not hasattr(post, 'like_count') or post.like_count < 20:
+                        # Skip already commented posts
+                        if post.uri in commented_posts:
                             continue
+                        
+                        # Skip very low engagement
+                        if not hasattr(post, 'like_count') or post.like_count < 25:
+                            continue
+                        
+                        # Skip old posts (older than 30 days)
+                        try:
+                            post_date = datetime.fromisoformat(post.record.created_at.replace('Z', '+00:00'))
+                            days_old = (datetime.now() - post_date).days
+                            if days_old > 30:
+                                continue
+                        except:
+                            pass
                         
                         # Get text safely
                         post_text = post.record.text.lower()
                         
                         # Check against ALL keywords (very broad)
-                        if any(keyword in post_text for keyword in ALL_KEYWORDS[:20]):
+                        if any(keyword in post_text for keyword in ALL_KEYWORDS[:25]):
                             score = post.like_count
                             
                             # Determine topic
                             post_topic = 'general'
                             for topic, keywords in TOPICS.items():
-                                if any(keyword in post_text for keyword in keywords[:3]):
+                                if any(keyword in post_text for keyword in keywords[:4]):
                                     post_topic = topic
                                     break
                             
@@ -275,10 +336,11 @@ class GuaranteedBot:
                                 'likes': post.like_count,
                                 'score': score,
                                 'topic': post_topic,
-                                'source': 'timeline'
+                                'source': 'timeline',
+                                'is_new': True
                             })
                             
-                            if len(all_posts) >= 10:
+                            if len(all_posts) >= 15:
                                 break
                                 
                     except AttributeError:
@@ -293,17 +355,21 @@ class GuaranteedBot:
         if len(all_posts) < 5:
             print("  👥 Method 2: Followed accounts")
             try:
-                accounts_to_check = ['wsj.bsky.social', 'bloomberg.bsky.social', 'cnbc.bsky.social']
+                accounts_to_check = ['wsj.bsky.social', 'bloomberg.bsky.social', 'cnbc.bsky.social', 'forbes.bsky.social']
                 
                 for account in accounts_to_check:
                     try:
                         acc_profile = self.client.get_profile(account)
-                        feed = self.client.get_author_feed(acc_profile.did, limit=5)
+                        feed = self.client.get_author_feed(acc_profile.did, limit=8)
                         
                         for item in feed.feed:
                             post = item.post
                             
-                            if not hasattr(post, 'like_count') or post.like_count < 10:
+                            # Skip already commented
+                            if post.uri in commented_posts:
+                                continue
+                            
+                            if not hasattr(post, 'like_count') or post.like_count < 30:
                                 continue
                             
                             post_text = post.record.text.lower()
@@ -316,13 +382,14 @@ class GuaranteedBot:
                                 'likes': post.like_count,
                                 'score': post.like_count * 2,
                                 'topic': 'news_finance',
-                                'source': f'account:{account}'
+                                'source': f'account:{account}',
+                                'is_new': True
                             })
                             
                     except Exception:
                         continue
                     
-                    if len(all_posts) >= 8:
+                    if len(all_posts) >= 10:
                         break
                         
             except Exception as e:
@@ -331,18 +398,22 @@ class GuaranteedBot:
         # METHOD 3: SEARCH with safe wrapper
         if len(all_posts) < 3:
             print("  🔍 Method 3: Safe search")
-            search_terms = ['money', 'help', 'life', 'work', 'home']
+            search_terms = ['money tips', 'financial advice', 'debt help', 'survival tips', 'emergency prep']
             
             for term in search_terms:
                 try:
                     response = self.client.app.bsky.feed.search_posts(
-                        params={'q': term, 'limit': 10}
+                        params={'q': term, 'limit': 12}
                     )
                     
                     if hasattr(response, 'posts'):
                         for post in response.posts:
                             try:
-                                if not hasattr(post, 'like_count') or post.like_count < 15:
+                                # Skip already commented
+                                if post.uri in commented_posts:
+                                    continue
+                                
+                                if not hasattr(post, 'like_count') or post.like_count < 20:
                                     continue
                                 
                                 post_text = post.record.text.lower()
@@ -355,7 +426,8 @@ class GuaranteedBot:
                                     'likes': post.like_count,
                                     'score': post.like_count,
                                     'topic': 'search_result',
-                                    'source': f'search:{term}'
+                                    'source': f'search:{term}',
+                                    'is_new': True
                                 })
                                 
                             except AttributeError:
@@ -365,15 +437,23 @@ class GuaranteedBot:
                     print(f"    ⚠️  Search '{term}' error")
                     continue
         
-        # METHOD 4: EMERGENCY - Get ANY post from Bloomberg
+        # METHOD 4: EMERGENCY - Get NEW post from Bloomberg
         if len(all_posts) == 0:
-            print("  🚨 Method 4: EMERGENCY - Bloomberg post")
+            print("  🚨 Method 4: EMERGENCY - New Bloomberg post")
             try:
                 bloomberg = self.client.get_profile('bloomberg.bsky.social')
-                feed = self.client.get_author_feed(bloomberg.did, limit=1)
+                feed = self.client.get_author_feed(bloomberg.did, limit=5)
                 
-                if feed.feed:
-                    post = feed.feed[0].post
+                for item in feed.feed:
+                    post = item.post
+                    
+                    # Skip already commented
+                    if post.uri in commented_posts:
+                        continue
+                    
+                    if not hasattr(post, 'like_count') or post.like_count < 10:
+                        continue
+                    
                     all_posts.append({
                         'uri': post.uri,
                         'cid': post.cid,
@@ -382,9 +462,11 @@ class GuaranteedBot:
                         'likes': post.like_count,
                         'score': 999,
                         'topic': 'fallback',
-                        'source': 'emergency:bloomberg'
+                        'source': 'emergency:bloomberg',
+                        'is_new': True
                     })
-                    print(f"    ✅ EMERGENCY post from @bloomberg.bsky.social")
+                    print(f"    ✅ NEW emergency post from @bloomberg.bsky.social")
+                    break
                     
             except Exception as e:
                 print(f"    ❌ Emergency method failed: {str(e)[:60]}")
@@ -392,8 +474,8 @@ class GuaranteedBot:
         # Sort by score and return
         if all_posts:
             all_posts.sort(key=lambda x: x['score'], reverse=True)
-            print(f"✅ Found {len(all_posts)} posts")
-            return all_posts[:3]
+            print(f"✅ Found {len(all_posts)} NEW posts (not commented before)")
+            return all_posts[:5]  # Return top 5 new posts
         
         return []
     
@@ -406,22 +488,22 @@ class GuaranteedBot:
         self.comment_counter += 1
         
         # Select comment based on topic
-        if topic in ['money', 'debt', 'finance']:
-            financial_comments = [c for c in COMMENTS if any(word in c.lower() for word in ['financial', 'debt', 'money', 'bill'])]
+        if topic in ['money', 'debt', 'finance', 'news_finance']:
+            financial_comments = [c for c in COMMENTS if any(word in c.lower() for word in ['financial', 'debt', 'money', 'bill', 'fund'])]
             if financial_comments:
                 comment = random.choice(financial_comments)
             else:
                 comment = random.choice(COMMENTS)
         
-        elif topic in ['survival', 'emergency', 'crisis']:
-            survival_comments = [c for c in COMMENTS if any(word in c.lower() for word in ['survival', 'prepared', 'emergency', 'crisis'])]
+        elif topic in ['survival', 'emergency', 'crisis', 'fallback']:
+            survival_comments = [c for c in COMMENTS if any(word in c.lower() for word in ['survival', 'prepared', 'emergency', 'crisis', 'practice'])]
             if survival_comments:
                 comment = random.choice(survival_comments)
             else:
                 comment = random.choice(COMMENTS)
         
         elif topic in ['stress', 'problem', 'help']:
-            support_comments = [c for c in COMMENTS if any(word in c.lower() for word in ['stress', 'anxiety', 'help', 'support'])]
+            support_comments = [c for c in COMMENTS if any(word in c.lower() for word in ['stress', 'anxiety', 'help', 'support', 'mindset'])]
             if support_comments:
                 comment = random.choice(support_comments)
             else:
@@ -433,7 +515,13 @@ class GuaranteedBot:
         # Add shop link every 5th comment
         if self.comment_counter % 5 == 0:
             shop_link = "https://www.payhip.com/daveprime"
-            comment = f"{comment}\n\n🔗 Practical solutions: {shop_link}"
+            ctas = [
+                f"\n\n🔗 Practical guides: {shop_link}",
+                f"\n\n📘 Step-by-step solutions: {shop_link}",
+                f"\n\n👉 Actionable templates: {shop_link}"
+            ]
+            comment = comment + random.choice(ctas)
+            print("  🔗 Adding shop link (every 5th comment)")
         
         return comment
     
@@ -487,15 +575,17 @@ class GuaranteedBot:
     # ============================================================================
     
     def run_guaranteed(self):
-        """Main function - guaranteed to work"""
-        print("="*60)
-        print("🚀 GUARANTEED WORKING BOT")
-        print("="*60)
+        """Main function - guaranteed to work with history"""
+        print("="*70)
+        print("🚀 GUARANTEED BOT WITH HISTORY TRACKING")
+        print("="*70)
         print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         # Load stats
         stats = self.load_stats()
+        commented_count = len(self.load_commented_posts())
         print(f"📊 Stats: {stats['total_comments']} total, {stats['daily_comments']} today")
+        print(f"📋 History: {commented_count} posts already commented")
         
         # Check daily limit (max 12 per day)
         if stats.get('daily_comments', 0) >= 12:
@@ -515,24 +605,26 @@ class GuaranteedBot:
             print(f"❌ Connection failed: {e}")
             return
         
-        # Human delay (30-60 seconds)
-        delay = random.randint(30, 60)
-        print(f"⏳ Delay: {delay} seconds")
+        # Human delay (45-90 seconds)
+        delay = random.randint(45, 90)
+        print(f"⏳ Human-like delay: {delay} seconds")
         time.sleep(delay)
         
-        # Find posts GUARANTEED
+        # Find NEW posts GUARANTEED (not commented before)
         posts = self.find_post_guaranteed()
         
         if not posts:
-            print("\n💔 NO POSTS FOUND - trying next run")
+            print("\n💔 NO NEW POSTS FOUND - all potential posts already commented")
+            print("   Will try again in next run")
             return
         
-        # Select best post
+        # Select best NEW post
         best_post = posts[0]
-        print(f"\n🏆 BEST POST SELECTED:")
+        print(f"\n🏆 BEST NEW POST SELECTED:")
         print(f"   👤 @{best_post['author']}")
         print(f"   👍 {best_post['likes']} likes")
         print(f"   🏷️  Topic: {best_post['topic']}")
+        print(f"   📅 Source: {best_post['source']}")
         print(f"   📄 {best_post['text'][:80]}...")
         
         # Generate comment
@@ -546,6 +638,9 @@ class GuaranteedBot:
             print("   ❌ Failed to post comment")
             return
         
+        # Save to history so we don't comment again
+        self.save_commented_post(best_post['uri'])
+        
         # Update statistics
         stats['total_comments'] = stats.get('total_comments', 0) + 1
         stats['daily_comments'] = stats.get('daily_comments', 0) + 1
@@ -555,26 +650,26 @@ class GuaranteedBot:
         
         if self.comment_counter % 5 == 0:
             stats['shop_links'] = stats.get('shop_links', 0) + 1
-            print("   🔗 SHOP LINK INCLUDED!")
         
         self.save_stats(stats)
         
         # Final summary
-        print("\n" + "="*60)
-        print("✅ BOT COMPLETE - SUCCESS!")
-        print("="*60)
+        print("\n" + "="*70)
+        print("✅ BOT COMPLETE - NEW POST COMMENTED!")
+        print("="*70)
         print(f"💬 Total comments: {stats['total_comments']}")
         print(f"📅 Today: {stats['daily_comments']}/12")
         print(f"🔗 Shop links: {stats.get('shop_links', 0)}")
+        print(f"📋 Total unique posts: {commented_count + 1}")
         print(f"🎯 Next shop link in: {5 - (self.comment_counter % 5)} comments")
         print(f"⏰ Next run: In 2 hours")
-        print("="*60)
+        print("="*70)
 
 # ============================================================================
 # 🎪 RUN
 # ============================================================================
 
 if __name__ == '__main__':
-    print("🔥 GUARANTEED BOT STARTING...")
-    bot = GuaranteedBot()
+    print("🔥 GUARANTEED BOT WITH HISTORY STARTING...")
+    bot = GuaranteedBotWithHistory()
     bot.run_guaranteed()
