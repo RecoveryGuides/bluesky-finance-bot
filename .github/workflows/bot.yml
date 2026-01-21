@@ -1,17 +1,17 @@
-name: 🎯 Finance Growth Bot
+name: 🚀 Finance Growth Bot
 
 on:
   schedule:
-    # USA prime time (9 AM, 1 PM, 5 PM EST)
+    # USA prime time: 9 AM, 1 PM, 5 PM EST
     - cron: '0 14 * * *'  # 9 AM EST = 14:00 UTC
-    - cron: '0 18 * * *'  # 1 PM EST = 18:00 UTC
+    - cron: '0 18 * * *'  # 1 PM EST = 18:00 UTC  
     - cron: '0 22 * * *'  # 5 PM EST = 22:00 UTC
-  workflow_dispatch:  # Ręczne uruchomienie
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     
     steps:
     - name: 📥 Pobierz kod
@@ -22,54 +22,61 @@ jobs:
       with:
         python-version: '3.10'
     
-    - name: 📦 Zainstaluj biblioteki
-      run: pip install atproto
+    - name: 📦 Zainstaluj atproto
+      run: pip install atproto==0.0.48
     
-    - name: 🤖 Uruchom bota finansowego
+    - name: 🤖 Uruchom bota
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
-      run: |
-        echo "🚀 Rozpoczynam bota..."
-        python finance_growth_bot.py
-        echo "✅ Bot zakończył pracę"
+      run: python finance_growth_bot.py
     
-    - name: 📊 Zapisz statystyki
+    - name: 📊 Zapisz pliki
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: bot-statistics
+        name: bot-files
         path: |
-          finance_bot_stats.json
-          posted_comments.json
-        retention-days: 30
+          bot_stats.json
+          comments_history.json
+        retention-days: 7
     
-    - name: 📈 Podsumowanie
+    - name: 📈 Pokaż podsumowanie
       if: always()
       run: |
+        echo ""
         echo "========================================"
-        echo "🤖 BOT ZAKOŃCZYŁ PRACĘ - PODSUMOWANIE"
+        echo "🤖 FINANCE BOT - PODSUMOWANIE"
         echo "========================================"
         echo ""
         
-        # Pokaż podstawowe statystyki
-        if [ -f "finance_bot_stats.json" ]; then
-          echo "📊 STATYSTYKI Z PLIKU:"
-          echo "----------------------"
-          cat finance_bot_stats.json
-          echo ""
+        # Sprawdź pliki
+        if [ -f "bot_stats.json" ]; then
+          echo "✅ bot_stats.json istnieje"
+          TOTAL_COMMENTS=$(grep -o '"total_comments":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
+          SHOP_LINKS=$(grep -o '"shop_links_posted":[0-9]*' bot_stats.json | grep -o '[0-9]*' || echo "0")
+          echo "📊 Komentarzy: $TOTAL_COMMENTS"
+          echo "🔗 Linków do sklepu: $SHOP_LINKS"
+        else
+          echo "❌ bot_stats.json nie istnieje"
         fi
         
-        echo "📁 CO ZROBIĆ DALEJ:"
-        echo "-------------------"
-        echo "1. Pobierz 'bot-statistics' z sekcji Artifacts"
-        echo "2. Sprawdź konto Bluesky - nowe komentarze"
-        echo "3. Monitoruj ruch na payhip.com/daveprime"
+        if [ -f "comments_history.json" ]; then
+          FILE_SIZE=$(wc -c < comments_history.json)
+          echo "✅ comments_history.json istnieje ($FILE_SIZE bajtów)"
+          LINE_COUNT=$(grep -c '"' comments_history.json 2>/dev/null || echo "0")
+          echo "💬 Wpisów w historii: $LINE_COUNT"
+        else
+          echo "❌ comments_history.json nie istnieje"
+        fi
+        
         echo ""
-        echo "🕒 NASTĘPNE URUCHOMIENIE:"
-        echo "-------------------------"
-        echo "- 9 AM EST (14:00 UTC) - za $(($((14 - $(date -u +%H))) % 24))h"
-        echo "- 1 PM EST (18:00 UTC) - za $(($((18 - $(date -u +%H))) % 24))h"
-        echo "- 5 PM EST (22:00 UTC) - za $(($((22 - $(date -u +%H))) % 24))h"
+        echo "========================================"
+        echo "📥 POBRANE PLIKI:"
+        echo "1. Pobierz 'bot-files' z Artifacts"
+        echo "2. Sprawdź konto Bluesky"
+        echo "3. Monitoruj payhip.com/daveprime"
         echo ""
-        echo "🔗 TWÓJ SKLEP: https://www.payhip.com/daveprime"
+        echo "🔄 NASTĘPNY RAZ:"
+        echo "9 AM, 1 PM, 5 PM EST"
+        echo "========================================"
