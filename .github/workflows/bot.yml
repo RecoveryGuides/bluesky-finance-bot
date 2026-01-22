@@ -2,7 +2,7 @@ name: 🤖 Smart Bot
 
 on:
   schedule:
-    - cron: '20 */8 * * *'  # Co 8 godzin
+    - cron: '20 */6 * * *'  # Co 6 godzin
   workflow_dispatch:
 
 jobs:
