@@ -47,6 +47,11 @@ COMMENTS = [
     "Credit card companies don't want you to know these negotiation scripts.",
     "Medical debt is negotiable. Most people don't know this.",
     "Your credit score can recover faster than you think with the right strategy.",
+    "Financial stress affects so many people. Tracking expenses is the first step to control.",
+    "Debt can feel overwhelming, but negotiation and payment plans are often possible.",
+    "Medical bills have more flexibility than people realize. Always ask for options.",
+    "Building even a small emergency fund creates psychological safety.",
+    "Automating finances was a game-changer for me. One less thing to worry about.",
     
     # Survival/kryzys
     "When crisis hits, having a plan is everything. Start with 72 hours of essentials.",
@@ -65,6 +70,11 @@ COMMENTS = [
     # Psychologia/mindset
     "Your money mindset determines your financial outcomes more than income.",
     "Money shame keeps people stuck. Talking about finances breaks the cycle.",
+    "Being prepared isn't about fear - it's about having options when things go wrong.",
+    "The most important survival tool is between your ears. Knowledge beats gear every time.",
+    "Start with basics: water, food, shelter, security. Everything else builds from there.",
+    "Financial preparedness IS emergency preparedness. Resources equal options.",
+    "Practice skills before you need them. Muscle memory works when adrenaline doesn't.",
     
     # Planowanie
     "Where does your money really go each month? Most people underestimate by 30%.",
@@ -73,10 +83,20 @@ COMMENTS = [
     # Kryzys
     "When money gets tight, prioritize: 1) Shelter 2) Utilities 3) Food 4) Transportation.",
     "Negotiate EVERYTHING during hardship: rent, utilities, medical bills, credit cards.",
+    "Being prepared isn't about fear - it's about having options when things go wrong.",
+    "The most important survival tool is between your ears. Knowledge beats gear every time.",
+    "Start with basics: water, food, shelter, security. Everything else builds from there.",
+    "Financial preparedness IS emergency preparedness. Resources equal options.",
+    "Practice skills before you need them. Muscle memory works when adrenaline doesn't.",
     
     # Ogólne
     "Progress, not perfection, is the goal with money.",
     "Small financial wins create momentum for bigger changes.",
+    "This is so relatable. Taking things one step at a time makes a huge difference.",
+    "Many people face similar challenges. Small consistent actions build up over time.",
+    "Practical advice often beats theoretical perfection. Start with what you can do today.",
+    "Progress isn't always linear. Celebrate the small wins along the way.",
+    "Having a clear plan reduces anxiety significantly. Break big problems into small steps.",
 ]
 
 print(f"💬 Loaded {len(COMMENTS)} comments")
