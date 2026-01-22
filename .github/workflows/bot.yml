@@ -1,39 +1,40 @@
-name: 🤖 Bot
+name: 🤖 Smart Bot
 
 on:
   schedule:
-    - cron: '17 */2 * * *'  # Co 2 godziny
+    - cron: '20 */2 * * *'  # Co 2 godziny
   workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     
     steps:
-    - name: 📥 Pobierz kod
+    - name: 📥 Checkout
       uses: actions/checkout@v4
     
-    - name: 🐍 Python
+    - name: 🐍 Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
     
-    - name: 📦 Zależności
-      run: pip install atproto==0.0.48
+    - name: 📦 Install dependencies
+      run: pip install -r requirements.txt
     
-    - name: 🤖 Uruchom
+    - name: 🤖 Run bot
       env:
         BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
         BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
       run: python bot.py
     
-    - name: 📊 Zapisz
+    - name: 💾 Save data
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: data
+        name: bot-data
         path: |
           stats.json
           history.json
+          authors.json
         retention-days: 30
