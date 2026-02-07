@@ -563,8 +563,8 @@ class SmartBot:
             stats['today_comments'] = 0
             stats['last_date'] = today
         
-        if stats.get('today_comments', 0) >= 8:
-            print(f"⏹️ Daily limit reached: {stats['today_comments']}/8")
+        if stats.get('today_comments', 0) >= 4:
+            print(f"⏹️ Daily limit reached: {stats['today_comments']}/4")
             return
         
         # Połącz z BlueSky
