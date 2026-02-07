@@ -649,7 +649,7 @@ class SmartBot:
         print("="*60)
         print(f"📊 Statistics:")
         print(f"   Total comments: {stats['total_comments']}")
-        print(f"   Today: {stats['today_comments']}/8")
+        print(f"   Today: {stats['today_comments']}/4")
         print(f"   Unique authors: {stats['unique_authors']}")
         print(f"   Next link in: {4 - (stats['total_comments'] % 4)} comments")
         print(f"⏰ Next run: In 3 hours")
